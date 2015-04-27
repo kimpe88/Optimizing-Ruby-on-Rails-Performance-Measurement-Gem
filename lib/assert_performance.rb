@@ -1,6 +1,8 @@
 require "assert_performance/version"
 require "benchmark"
 require "parse-ruby-client"
+require 'rubygems'
+require "active_record"
 
 ##
 # Benchmarks code and database calls and optionally submits results to a Parse database
@@ -10,12 +12,15 @@ require "parse-ruby-client"
 #
 #
 module AssertPerformance
+
+  class PerformanceTestTransactionError < StandardError
+  end
   # If Parse information is supplied setup Parse
   if ENV["application_key"] && ENV["api_key"]
     @parse = Parse.init(application_key: ENV["application_key"], api_key: ENV["api_key"], quiet: false)
   end
 
-  def benchmark_code(name, &block)
+  def self.benchmark_code(name, &block)
 
     (0..30).each do |i|
       # Force GC to reclaim all memory used in previous run
@@ -71,18 +76,18 @@ module AssertPerformance
       parse_msg = res.save
       puts "Saving data to Parse: #{parse_msg}"
     end
-    [name, average, stddev]
+    {name: name, average: average, standard_deviation: stddev}
   end
 
-  def benchmark_database
+  def self.benchmark_database
     #TODO
   end
 
-  def standard_deviation(measurements)
-    Math.sqrt(measurements.inject(0){|sum, x| sum + (x - average) ** 2}.to_f / (measurements.size - 1))
+  def self.standard_deviation(measurements)
+    Math.sqrt(measurements.inject(0){|sum, x| sum + (x - average(measurements)) ** 2}.to_f / (measurements.size - 1))
   end
 
-  def average(measurements)
+  def self.average(measurements)
     measurements.inject(0) { |sum, x| sum + x }.to_f / measurements.size
   end
 end
