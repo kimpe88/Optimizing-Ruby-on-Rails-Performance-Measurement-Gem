@@ -15,13 +15,8 @@ module AssertPerformance
 
   class PerformanceTestTransactionError < StandardError
   end
-  # If Parse information is supplied setup Parse
-  if ENV["application_key"] && ENV["api_key"]
-    @parse = Parse.init(application_key: ENV["application_key"], api_key: ENV["api_key"], quiet: false)
-  end
 
   def self.benchmark_code(name, &block)
-
     (0..30).each do |i|
       # Force GC to reclaim all memory used in previous run
       GC.start
@@ -67,20 +62,40 @@ module AssertPerformance
     stddev = standard_deviation(measurements).round(3)
 
     # If parse object is set store results in parse database for further analysis
+    id = nil
     if @parse
-      res = Parse::Object.new("CodeBenchmark")
-      res['time'] = Time.new
-      res['name'] = name
-      res['average'] = average
-      res['standard_deviation'] = stddev
-      parse_msg = res.save
+      parse_benchmark = Parse::Object.new("CodeBenchmark")
+      parse_benchmark['time'] = Time.new
+      parse_benchmark['name'] = name
+      parse_benchmark['average'] = average
+      parse_benchmark['standard_deviation'] = stddev
+      parse_msg = parse_benchmark.save
       puts "Saving data to Parse: #{parse_msg}"
+      id = parse_benchmark["objectId"]
     end
-    {name: name, average: average, standard_deviation: stddev}
+    {name: name, average: average, standard_deviation: stddev, id: id}
   end
 
-  def self.benchmark_database
-    #TODO
+  def self.benchmark_database(name)
+    result = []
+    ActiveSupport::Notifications.subscribe "sql.active_record" do |*args|
+      event = ActiveSupport::Notifications::Event.new(*args)
+      query_name = event.payload[:sql]
+      next if ['SCHEMA'].include?(query_name)
+      result << query_name
+    end
+    yield
+    ActiveSupport::Notifications.unsubscribe("sql.active_record")
+    id = nil
+    if @parse
+      parse_benchmark = Parse::Object.new("DatabaseBenchmark")
+      parse_benchmark['name'] = name
+      parse_benchmark['queries'] = result
+      parse_msg = parse_benchmark.save
+      puts "Saving data to Parse: #{parse_msg}"
+      id = parse_benchmark["objectId"]
+    end
+    {name: name, queries: result, id: id}
   end
 
   def self.standard_deviation(measurements)
@@ -89,5 +104,11 @@ module AssertPerformance
 
   def self.average(measurements)
     measurements.inject(0) { |sum, x| sum + x }.to_f / measurements.size
+  end
+
+  def self.setup_parse(parse_details)
+    Parse.init(parse_details)
+    @parse = true
+    puts "Setting up parse"
   end
 end
