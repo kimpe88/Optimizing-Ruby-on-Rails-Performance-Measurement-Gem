@@ -6,12 +6,10 @@ require 'assert_performance/version'
 Gem::Specification.new do |spec|
   spec.name          = "assert_performance"
   spec.version       = AssertPerformance::VERSION
-  spec.authors       = ["TODO: Write your name"]
-  spec.email         = ["TODO: Write your email address"]
+  spec.authors       = ["Kim Persson"]
+  spec.email         = ["kimpersson88@gmail.com"]
 
-  spec.summary       = %q{TODO: Write a short summary, because Rubygems requires one.}
-  spec.description   = %q{TODO: Write a longer description or delete this line.}
-  spec.homepage      = "TODO: Put your gem's website or public repo URL here."
+  spec.summary       = %q{Benches blocks of code and saves results to provided parse database}
   spec.license       = "MIT"
 
   # Prevent pushing this gem to RubyGems.org by setting 'allowed_push_host', or
