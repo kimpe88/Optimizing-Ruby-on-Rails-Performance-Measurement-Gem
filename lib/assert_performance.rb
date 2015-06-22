@@ -17,6 +17,8 @@ module AssertPerformance
   end
 
   def self.benchmark_code(name, &block)
+    operation_results = nil
+    read, write = IO.pipe
     (0..30).each do |i|
       # Force GC to reclaim all memory used in previous run
       GC.start
@@ -33,7 +35,7 @@ module AssertPerformance
         begin
           ActiveRecord::Base.transaction do
             elapsed_time = Benchmark::realtime do
-              yield
+              operation_results = yield
             end
             raise PerformanceTestTransactionError
           end
@@ -48,8 +50,8 @@ module AssertPerformance
         benchmark_results.close
         GC.enable if ENV["RUBY_DISABLE_GC"]
 
-        # Do we need hack here???
-
+        read.close
+        Marshal.dump(operation_results,write)
       end
       Process::waitpid pid
     end
@@ -73,7 +75,13 @@ module AssertPerformance
       puts "Saving data to Parse: #{parse_msg}"
       id = parse_benchmark["objectId"]
     end
-    {name: name, average: average, standard_deviation: stddev, id: id}
+    # Return benchmark and operation results so they can be validated
+    write.close
+    process_results = read.read
+    return {
+      results: Marshal.load(process_results),
+      benchmark: { name: name, average: average, standard_deviation: stddev, id: id }
+    }
   end
 
   def self.benchmark_database(name)
@@ -95,7 +103,8 @@ module AssertPerformance
       puts "Saving data to Parse: #{parse_msg}"
       id = parse_benchmark["objectId"]
     end
-    {name: name, queries: result, id: id}
+    # Put results into hash under benchmark to match benchmark_code structure
+    { benchmark: {name: name, queries: result, id: id} }
   end
 
   def self.standard_deviation(measurements)

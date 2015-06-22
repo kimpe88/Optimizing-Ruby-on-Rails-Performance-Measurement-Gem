@@ -1,6 +1,7 @@
 require 'spec_helper'
 require 'sqlite3'
 require 'yaml'
+require 'pry'
 
 describe AssertPerformance do
   before :each do
@@ -25,15 +26,17 @@ describe AssertPerformance do
   it 'measures execution time correctly' do
     results = AssertPerformance.benchmark_code("Test") do
       sleep 0.1
+      200
     end
-    expect(results[:name]).to eq "Test"
-    expect(results[:average].round(2)).to eq 0.10
-    expect(results[:standard_deviation].round(2)).to eq 0.00
+    expect(results[:benchmark][:name]).to eq "Test"
+    expect(results[:benchmark][:average].round(2)).to eq 0.10
+    expect(results[:benchmark][:standard_deviation].round(2)).to eq 0.00
+    expect(results[:results]).to eq 200
   end
 
   it 'benchmarks database queries correctly' do
     result = bench_db
-    expect(result[:queries].length).to be 1
+    expect(result[:benchmark][:queries].length).to be 1
   end
 
   describe "parse database" do
@@ -45,25 +48,25 @@ describe AssertPerformance do
       results = AssertPerformance.benchmark_code("Test") do
         sleep 0.1
       end
-      expect(results[:name]).to eq "Test"
-      expect(results[:average].round(2)).to eq 0.10
-      expect(results[:standard_deviation].round(2)).to eq 0.00
-      expect(results[:id]).to_not be nil
-      saved_benchmark = Parse::Query.new("CodeBenchmark").eq("objectId", results[:id]).get.first
+      expect(results[:benchmark][:name]).to eq "Test"
+      expect(results[:benchmark][:average].round(2)).to eq 0.10
+      expect(results[:benchmark][:standard_deviation].round(2)).to eq 0.00
+      expect(results[:benchmark][:id]).to_not be nil
+      saved_benchmark = Parse::Query.new("CodeBenchmark").eq("objectId", results[:benchmark][:id]).get.first
       saved_benchmark.parse_delete
       # Double check so we don't leave any useless test data in Parse db
-      expect(Parse::Query.new("CodeBenchmark").eq("objectId", results[:id]).get.length).to be 0
+      expect(Parse::Query.new("CodeBenchmark").eq("objectId", results[:benchmark][:id]).get.length).to be 0
     end
 
     it 'successfully post database bench information to parse' do
       results = bench_db
-      expect(results[:name]).to eq "Test"
-      expect(results[:queries].length).to be 1
-      expect(results[:id]).to_not be nil
-      saved_benchmark = Parse::Query.new("DatabaseBenchmark").eq("objectId", results[:id]).get.first
+      expect(results[:benchmark][:name]).to eq "Test"
+      expect(results[:benchmark][:queries].length).to be 1
+      expect(results[:benchmark][:id]).to_not be nil
+      saved_benchmark = Parse::Query.new("DatabaseBenchmark").eq("objectId", results[:benchmark][:id]).get.first
       saved_benchmark.parse_delete
       # Double check so we don't leave any useless test data in Parse db
-      expect(Parse::Query.new("DatabaseBenchmark").eq("objectId", results[:id]).get.length).to be 0
+      expect(Parse::Query.new("DatabaseBenchmark").eq("objectId", results[:benchmark][:id]).get.length).to be 0
     end
   end
   private
