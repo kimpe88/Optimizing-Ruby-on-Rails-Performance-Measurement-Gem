@@ -34,6 +34,15 @@ describe AssertPerformance do
     expect(results[:results]).to eq 200
   end
 
+  it 'measures allocated memory correctly' do
+    # Turn off garbage collector so it doesn't interfer with the test
+    ENV["RUBY_DISABLE_GC"] = 'true'
+    results = AssertPerformance.benchmark_code("Test") do
+      tmp = 'x' * (1024)
+    end
+    expect(results[:benchmark][:memory] > 0).to be true
+  end
+
   it 'benchmarks database queries correctly' do
     result = bench_db
     expect(result[:benchmark][:queries].length).to be 1

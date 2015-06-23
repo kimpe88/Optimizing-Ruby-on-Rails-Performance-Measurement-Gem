@@ -31,12 +31,14 @@ module AssertPerformance
 
         # Store results in a between runs
         benchmark_results = File.open("benchmark_results_#{name}", "a")
-        elapsed_time = nil
+        elapsed_time, memory_after, memory_before = nil
         begin
           ActiveRecord::Base.transaction do
+            memory_before = `ps -o rss= -p #{Process.pid}`.to_i
             elapsed_time = Benchmark::realtime do
               operation_results = yield
             end
+            memory_after = `ps -o rss= -p #{Process.pid}`.to_i
             raise PerformanceTestTransactionError
           end
         rescue PerformanceTestTransactionError
@@ -51,7 +53,8 @@ module AssertPerformance
         GC.enable if ENV["RUBY_DISABLE_GC"]
 
         read.close
-        Marshal.dump(operation_results,write)
+        results = {results: operation_results , memory: (memory_after - memory_before)}
+        Marshal.dump(results,write)
       end
       Process::waitpid pid
     end
@@ -78,9 +81,16 @@ module AssertPerformance
     # Return benchmark and operation results so they can be validated
     write.close
     process_results = read.read
+    processed_results = Marshal.load(process_results)
     return {
-      results: Marshal.load(process_results),
-      benchmark: { name: name, average: average, standard_deviation: stddev, id: id }
+      results: processed_results[:results],
+      benchmark: {
+        name: name,
+        average: average,
+        standard_deviation: stddev,
+        memory: processed_results[:memory],
+        id: id
+      }
     }
   end
 
