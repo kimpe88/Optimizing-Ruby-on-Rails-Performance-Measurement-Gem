@@ -63,8 +63,8 @@ module AssertPerformance
     end
     File.delete("benchmark_results_#{name}")
 
-    average = average(measurements).round(3)
-    stddev = standard_deviation(measurements).round(3)
+    average = average(measurements).round(5)
+    stddev = standard_deviation(measurements).round(5)
 
     # If parse object is set store results in parse database for further analysis
     id = nil
